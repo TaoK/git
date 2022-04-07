@@ -15,9 +15,7 @@
 # pylint: disable=too-many-statements,too-many-instance-attributes
 # pylint: disable=too-many-branches,too-many-nested-blocks
 #
-from codecs import ignore_errors
 import sys
-from tokenize import Ignore
 if sys.version_info.major < 3 and sys.version_info.minor < 7:
     sys.stderr.write("git-p4: requires Python 2.7 or later.\n")
     sys.exit(1)
@@ -44,7 +42,7 @@ import glob
 # x 2. Rework options to "legacy" (old python2), "strict", and "fallback" (with fallback encoding)
 # x 3. Implement better error-handling for strict mode
 # x 4. Think about config, also, like address
-# 5. Rework tests to do explicit testing identically, and then specific conditions separately
+# x 5. Rework tests to do explicit testing identically, and then specific conditions separately
 # 6. Figure out how authors work, fix that too.
 # 7. Add persistence of used git-p4 config options in clone
 # MEANWHILE: GitHub Build!
@@ -54,11 +52,6 @@ import glob
 #  - test duplication issues
 #  - python2 vs python3 forcing strategy
 #    - incl binary path hardcoding
-#  - global state management in git-p4
-#  - other parts of the workflow (submitting, particularly!)
-#  - config strategy like path encoding
-
-
 
 # On python2.7 where raw_input() and input() are both availble,
 # we want raw_input's semantics, but aliased to input for python3
@@ -78,8 +71,8 @@ defaultLabelRegexp = r'[a-zA-Z0-9_\-.]+$'
 # The block size is reduced automatically if required
 defaultBlockSize = 1<<20
 
-defaultEncodingStrategy = 'legacy' if sys.version_info.major == 2 else 'strict'
-defaultFallbackEncoding = 'cp1252'
+defaultMetadataDecodingStrategy = 'legacy' if sys.version_info.major == 2 else 'strict'
+defaultFallbackMetadataEncoding = 'cp1252'
 
 p4_access_checked = False
 
@@ -215,50 +208,65 @@ def prompt(prompt_text):
         if response in choices:
             return response
 
-class DecodingException(Exception):
-    def __init__(self, input_string, fallback_error):
+# We need different encoding/decoding strategies for text data being passed
+# around in pipes depending on python version
+if bytes is not str:
+    # For python3, always encode and decode as appropriate
+    def decode_text_stream(s):
+        return s.decode() if isinstance(s, bytes) else s
+    def encode_text_stream(s):
+        return s.encode() if isinstance(s, str) else s
+else:
+    # For python2.7, pass read strings as-is, but also allow writing unicode
+    def decode_text_stream(s):
+        return s
+    def encode_text_stream(s):
+        return s.encode('utf_8') if isinstance(s, unicode) else s
+
+class MetadataDecodingException(Exception):
+    def __init__(self, input_string, fallback_encoding, fallback_error):
         self.input_string = input_string
+        self.fallback_encoding = fallback_encoding
         self.fallback_error = fallback_error
 
     def __str__(self):
-        error_message = u"""Decoding returned data failed!
+        error_message = """Decoding returned data failed!
 The failing string was:
 ---
 {}
 ---""".format(self.input_string)
+
         if not self.fallback_error:
             error_message += """
-Consider specifying --metadata-encoding-strategy=fallback to allow metadata to be
-decoded using a fallback encoding, defaulting to cp1252."""
+Consider setting the git-p4.metadataEncodingStrategy config option to
+'fallback', to allow metadata to be decoded using a fallback encoding,
+defaulting to cp1252."""
         else:
             error_message += """
-The conversion failed while using the fallback encoding; consider using a more forgiving one:
+The conversion failed while using the fallback encoding '{}';
+consider using a more forgiving one:
 {}
-""".format(self.fallback_error)
+""".format(self.fallback_encoding, self.fallback_error)
+
         return error_message
 
-def decode_text_stream(s):
-    # These config lookups explicitly specify the encoding, to avoid an infinite loop on processing
-    # the git config command's response.
-    encodingStrategy = gitConfig('git-p4.encodingStrategy', encoding='utf_8') or defaultEncodingStrategy
-    fallbackEncoding = gitConfig('git-p4.fallbackEncoding', encoding='utf_8') or defaultFallbackEncoding
+def decode_metadata_stream(s):
+    encodingStrategy = gitConfig('git-p4.metadataEncodingStrategy') or defaultMetadataDecodingStrategy
+    fallbackEncoding = gitConfig('git-p4.metadataFallbackEncoding') or defaultFallbackMetadataEncoding
     if not isinstance(s, bytes):
         return s
     if encodingStrategy == 'legacy':
         return s
     try:
         return s.decode('utf_8')
-    except UnicodeDecodeError as uni:
+    except UnicodeDecodeError:
         fallback_error = None
         if encodingStrategy == 'fallback' and fallbackEncoding:
             try:
                 return s.decode(fallbackEncoding)
             except Exception as e:
                 fallback_error = e
-        raise DecodingException(s, fallback_error)
-
-def encode_text_stream(s):
-    return s if isinstance(s, bytes) else s.encode('utf_8')
+        raise MetadataDecodingException(s, fallbackEncoding, fallback_error)
 
 def decode_path(path):
     """Decode a given string (bytes or otherwise) using configured path encoding options
@@ -314,7 +322,7 @@ def read_pipe_full(c, *k, **kw):
     p = subprocess.Popen(
         c, stdout=subprocess.PIPE, stderr=subprocess.PIPE, *k, **kw)
     (out, err) = p.communicate()
-    return (p.returncode, out, err)
+    return (p.returncode, out, decode_text_stream(err))
 
 def read_pipe(c, ignore_error=False, raw=False, *k, **kw):
     """ Read output from  command. Returns the output text on
@@ -326,9 +334,9 @@ def read_pipe(c, ignore_error=False, raw=False, *k, **kw):
     (retcode, out, err) = read_pipe_full(c, *k, **kw)
     if retcode != 0:
         if ignore_error:
-            out = b""
+            out = ""
         else:
-            die('Command failed: {}\nError: {}'.format(' '.join(c), err.decode('utf_8', ignore_error=True)))
+            die('Command failed: {}\nError: {}'.format(' '.join(c), err))
     if not raw:
         out = decode_text_stream(out)
     return out
@@ -434,7 +442,7 @@ def p4_check_access(min_expiration=1):
         # we get here if we couldn't connect and there was nothing to unmarshal
         die_bad_access("could not connect")
 
-    elif code == b"stat":
+    elif code == "stat":
         expiry = result.get("TicketExpiration")
         if expiry:
             expiry = int(expiry)
@@ -448,13 +456,13 @@ def p4_check_access(min_expiration=1):
             # account without a timeout - all ok
             return
 
-    elif code == b"error":
+    elif code == "error":
         data = result.get("data")
         if data:
             die_bad_access("p4 error: {0}".format(data))
         else:
             die_bad_access("unknown error")
-    elif code == b"info":
+    elif code == "info":
         return
     else:
         die_bad_access("unknown error code {0}".format(code))
@@ -531,7 +539,7 @@ def p4_describe(change, shelved=False):
         die("p4 describe -s %d exited with %d: %s" % (change, d["p4ExitCode"],
                                                       str(d)))
     if "code" in d:
-        if d["code"] == b"error":
+        if d["code"] == "error":
             die("p4 describe -s %d returned error code: %s" % (change, str(d)))
 
     if "time" not in d:
@@ -756,28 +764,26 @@ def p4CmdList(cmd, stdin=None, stdin_mode='w+b', cb=None, skip_info=False,
     try:
         while True:
             entry = marshal.load(p4.stdout)
-
-            # Decode unmarshalled dict to use unicode keys and values, except:
-            #   - `data` values, which may contain arbitrary binary data (and should not be "interpreted" at all)
-            #   - `code` values, which are always treated and tested as binary
-            #   - `depotFile[0-9]*`, `path`, or `clientFile` values, which may contain non-UTF8 encoded text (and has explicit handling later)
-            #   - "legacy" encoding mode (handled inside `decode_text_stream()``), where we pass uninterpreted byte streams all the way into git
-            # First try decoding using primary encoding, then try fallback encoding if specified
-            decoded_entry = {}
-            for key, value in entry.items():
-                key = key.decode('utf8')
-                if isinstance(value, bytes) and not (key in ('data', 'code', 'path', 'clientFile') or key.startswith('depotFile')):
-                    value = decode_text_stream(value)
-                decoded_entry[key] = value
-
-            # Parse out data if it's an error response
-            if decoded_entry.get('code') == b'error' and 'data' in decoded_entry:
-                decoded_entry['data'] = decoded_entry['data'].decode()
-            entry = decoded_entry
-
+            if bytes is not str:
+                # Decode unmarshalled dict to use str keys and values, except for:
+                #   - `data` which may contain arbitrary binary data
+                #   - `desc` which may contain non-UTF8 encoded text handled below
+                #   - `depotFile[0-9]*`, `path`, or `clientFile` which may contain non-UTF8 encoded text, handled by decode_path()
+                decoded_entry = {}
+                for key, value in entry.items():
+                    key = key.decode()
+                    if isinstance(value, bytes) and not (key in ('data', 'desc', 'path', 'clientFile') or key.startswith('depotFile')):
+                        value = value.decode()
+                    decoded_entry[key] = value
+                # Parse out data if it's an error response
+                if decoded_entry.get('code') == 'error' and 'data' in decoded_entry:
+                    decoded_entry['data'] = decoded_entry['data'].decode()
+                entry = decoded_entry
             if skip_info:
-                if 'code' in entry and entry['code'] == b'info':
+                if 'code' in entry and entry['code'] == 'info':
                     continue
+            if 'desc' in entry:
+                entry['desc'] = decode_metadata_stream(entry['desc'])
             if cb is not None:
                 cb(entry)
             else:
@@ -837,7 +843,7 @@ def p4Where(depotPath):
                 break
     if output == None:
         return ""
-    if output["code"] == b"error":
+    if output["code"] == "error":
         return ""
     clientPath = ""
     if "path" in output:
@@ -917,15 +923,13 @@ def gitDeleteRef(ref):
 
 _gitConfig = {}
 
-def gitConfig(key, typeSpecifier=None, encoding=None):
+def gitConfig(key, typeSpecifier=None):
     if key not in _gitConfig:
         cmd = [ "git", "config" ]
         if typeSpecifier:
             cmd += [ typeSpecifier ]
         cmd += [ key ]
-        s = read_pipe(cmd, ignore_error=True, raw=bool(encoding))
-        if encoding:
-            s = s.decode(encoding)
+        s = read_pipe(cmd, ignore_error=True)
         _gitConfig[key] = s.strip()
     return _gitConfig[key]
 
@@ -1784,7 +1788,7 @@ class P4Submit(Command, P4UserMap):
         result = p4CmdList(["change", "-f", "-i"], stdin=input)
         for r in result:
             if 'code' in r:
-                if r['code'] == b'error':
+                if r['code'] == 'error':
                     die("Could not modify user field of changelist %s to %s:%s" % (changelist, newUser, r['data']))
             if 'data' in r:
                 print("Updated user field for changelist %s to %s" % (changelist, newUser))
@@ -1838,7 +1842,7 @@ class P4Submit(Command, P4UserMap):
         for entry in p4CmdList(args):
             if 'code' not in entry:
                 continue
-            if entry['code'] == b'stat':
+            if entry['code'] == 'stat':
                 change_entry = entry
                 break
         if not change_entry:
@@ -2639,7 +2643,7 @@ class View(object):
 
         where_result = p4CmdList(["-x", "-", "where"], stdin=fileArgs)
         for res in where_result:
-            if "code" in res and res["code"] == b"error":
+            if "code" in res and res["code"] == "error":
                 # assume error is "... file(s) not in client view"
                 continue
             if "clientFile" not in res:
@@ -3016,7 +3020,7 @@ class P4Sync(Command, P4UserMap):
         # catch p4 errors and complain
         err = None
         if "code" in marshalled:
-            if marshalled["code"] == b"error":
+            if marshalled["code"] == "error":
                 if "data" in marshalled:
                     err = marshalled["data"].rstrip()
 
@@ -3033,8 +3037,8 @@ class P4Sync(Command, P4UserMap):
                     f = self.stream_file["depotFile"]
             # force a failure in fast-import, else an empty
             # commit will be made
-            self.gitStream.write(b"\n")
-            self.gitStream.write(b"die-now\n")
+            self.gitStream.write("\n")
+            self.gitStream.write("die-now\n")
             self.gitStream.close()
             # ignore errors, but make sure it exits first
             self.importProcess.wait()
@@ -3204,7 +3208,7 @@ class P4Sync(Command, P4UserMap):
             stat_result = p4CmdList(["-x", "-", "fstat", "-T",
                 "depotFile,headAction,headRev,headType"], stdin=to_check)
             for record in stat_result:
-                if record['code'] != b'stat':
+                if record['code'] != 'stat':
                     continue
                 if record['headAction'] in self.delete_actions:
                     continue
@@ -3239,37 +3243,37 @@ class P4Sync(Command, P4UserMap):
                 .format(details['change']))
             return
 
-        self.gitStream.write(b"commit %s\n" % encode_text_stream(branch))
-        self.gitStream.write(b"mark :%s\n" % encode_text_stream(details["change"]))
+        self.gitStream.write("commit %s\n" % branch)
+        self.gitStream.write("mark :%s\n" % details["change"])
         self.committedChanges.add(int(details["change"]))
         committer = ""
         if author not in self.users:
             self.getUserMapFromPerforceServer()
-        committer = b"%s %s %s" % (encode_text_stream(self.make_email(author)), encode_text_stream(epoch), encode_text_stream(self.tz))
+        committer = "%s %s %s" % (self.make_email(author), epoch, self.tz)
 
-        self.gitStream.write(b"committer %s\n" % committer)
+        self.gitStream.write("committer %s\n" % committer)
 
-        self.gitStream.write(b"data <<EOT\n")
-        self.gitStream.write(details["desc"])
+        self.gitStream.write("data <<EOT\n")
+        self.gitStream.write(encode_text_stream(details["desc"]))
         if len(jobs) > 0:
-            self.gitStream.write(b"\nJobs: %s" % (' '.join(jobs)))
+            self.gitStream.write("\nJobs: %s" % (' '.join(jobs)))
 
         if not self.suppress_meta_comment:
-            self.gitStream.write(b"\n[git-p4: depot-paths = \"%s\": change = %s" %
-                                (b','.join(self.branchPrefixes), details["change"]))
+            self.gitStream.write("\n[git-p4: depot-paths = \"%s\": change = %s" %
+                                (','.join(self.branchPrefixes), details["change"]))
             if len(details['options']) > 0:
-                self.gitStream.write(b": options = %s" % details['options'])
-            self.gitStream.write(b"]\n")
+                self.gitStream.write(": options = %s" % details['options'])
+            self.gitStream.write("]\n")
 
-        self.gitStream.write(b"EOT\n\n")
+        self.gitStream.write("EOT\n\n")
 
         if len(parent) > 0:
             if self.verbose:
-                print(b"parent %s" % parent)
-            self.gitStream.write(b"from %s\n" % parent)
+                print("parent %s" % parent)
+            self.gitStream.write("from %s\n" % parent)
 
         self.streamP4Files(files)
-        self.gitStream.write(b"\n")
+        self.gitStream.write("\n")
 
         change = int(details["change"])
 
@@ -3292,7 +3296,7 @@ class P4Sync(Command, P4UserMap):
                     cleanedFiles[info["depotFile"]] = info["rev"]
 
                 if cleanedFiles == labelRevisions:
-                    self.streamTag(self.gitStream, b'tag_%s' % labelDetails['label'], labelDetails, branch, epoch)
+                    self.streamTag(self.gitStream, 'tag_%s' % labelDetails['label'], labelDetails, branch, epoch)
 
                 else:
                     if not self.silent:
@@ -3680,7 +3684,7 @@ class P4Sync(Command, P4UserMap):
 
         for info in p4CmdList(["files"] + fileArgs):
 
-            if 'code' in info and info['code'] == b'error':
+            if 'code' in info and info['code'] == 'error':
                 sys.stderr.write("p4 returned an error: %s\n"
                                  % info['data'])
                 if info['data'].find("must refer to client") >= 0:
@@ -3791,18 +3795,8 @@ class P4Sync(Command, P4UserMap):
                     sys.stdout.write("\n")
 
     def openStreams(self):
-        self.gitStream = sys.stdout
-        def make_encoded_write(write):
-            def encoded_write(s):
-                #print(s)
-                encoded_value = encode_text_stream(s)
-                return write(encoded_value.decode('utf8', errors="ignore"))
-            return encoded_write
-
-        self.gitStream.write = make_encoded_write(self.gitStream.write)
-
-        return True
-
+        #self.gitStream = sys.stdout
+        #return True
         self.importProcess = subprocess.Popen(["git", "fast-import"],
                                               stdin=subprocess.PIPE,
                                               stdout=subprocess.PIPE,
@@ -3815,14 +3809,13 @@ class P4Sync(Command, P4UserMap):
             # Wrap gitStream.write() so that it can be called using `str` arguments
             def make_encoded_write(write):
                 def encoded_write(s):
-                    print(s)
-                    return write(encode_text_stream(s))
+                    return write(s.encode() if isinstance(s, str) else s)
                 return encoded_write
 
             self.gitStream.write = make_encoded_write(self.gitStream.write)
 
     def closeStreams(self):
-        return True
+        #return True
         if self.gitStream is None:
             return
         self.gitStream.close()

@@ -27,7 +27,7 @@ then
 fi
 
 ###############################
-## SECTION REPEATED IN t9835 ##
+## SECTION REPEATED IN t9836 ##
 ###############################
 
 test_expect_success 'start p4d' '
@@ -56,13 +56,14 @@ test_expect_success 'init depot' '
 
 test_expect_success 'clone non-utf8 repo with strict encoding' '
 	test_when_finished cleanup_git &&
-	test_must_fail git -c git-p4.encodingStrategy=strict p4.py clone --dest="$git" //depot@all 2>err &&
+	test_must_fail git -c git-p4.metadataEncodingStrategy=strict p4.py clone --dest="$git" //depot@all 2>err &&
+	cat err &&
 	grep "Decoding returned data failed!" err
 '
 
 test_expect_success 'check utf-8 contents with legacy strategy' '
 	test_when_finished cleanup_git &&
-	git -c git-p4.encodingStrategy=legacy p4.py clone --dest="$git" //depot@all &&
+	git -c git-p4.metadataEncodingStrategy=legacy p4.py clone --dest="$git" //depot@all &&
 	(
 		cd "$git" &&
 		git log >actual &&
@@ -72,7 +73,7 @@ test_expect_success 'check utf-8 contents with legacy strategy' '
 
 test_expect_success 'check utf-8 contents with fallback strategy' '
 	test_when_finished cleanup_git &&
-	git -c git-p4.encodingStrategy=fallback p4.py clone --dest="$git" //depot@all &&
+	git -c git-p4.metadataEncodingStrategy=fallback p4.py clone --dest="$git" //depot@all &&
 	(
 		cd "$git" &&
 		git log >actual &&
@@ -82,7 +83,7 @@ test_expect_success 'check utf-8 contents with fallback strategy' '
 
 test_expect_success 'check latin-1 contents with fallback strategy' '
 	test_when_finished cleanup_git &&
-	git -c git-p4.encodingStrategy=fallback p4.py clone --dest="$git" //depot@all &&
+	git -c git-p4.metadataEncodingStrategy=fallback p4.py clone --dest="$git" //depot@all &&
 	(
 		cd "$git" &&
 		git log >actual &&
@@ -92,7 +93,7 @@ test_expect_success 'check latin-1 contents with fallback strategy' '
 
 test_expect_success 'check cp-1252 contents with fallback strategy' '
 	test_when_finished cleanup_git &&
-	git -c git-p4.encodingStrategy=fallback p4.py clone --dest="$git" //depot@all &&
+	git -c git-p4.metadataEncodingStrategy=fallback p4.py clone --dest="$git" //depot@all &&
 	(
 		cd "$git" &&
 		git log >actual &&
