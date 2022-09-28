@@ -97,7 +97,32 @@ merge_mode () {
 	test "$TOOL_MODE" = merge
 }
 
+get_gui_default () {
+	if diff_mode
+	then
+		GUI_DEFAULT_CONFIG=$(git config --default false --get difftool.guiDefault)
+	else
+		GUI_DEFAULT_CONFIG=$(git config --default false --get mergetool.guiDefault)
+	fi
+	if [ "$GUI_DEFAULT_CONFIG" = "auto" ] #MISSING: CASE INSENSITIVITY
+	then
+		if [ -n "$DISPLAY" ]
+		then
+			GUI_DEFAULT=true
+		else
+			GUI_DEFAULT=false
+		fi
+	else
+		GUI_DEFAULT=$(git config --default false --bool --get ${1}tool.guiDefault)
+	fi
+	echo $GUI_DEFAULT
+}
+
 gui_mode () {
+	if [ -z "$GIT_MERGETOOL_GUI" ]
+	then
+		GIT_MERGETOOL_GUI=$(get_gui_default)
+	fi
 	test "$GIT_MERGETOOL_GUI" = true
 }
 

@@ -682,12 +682,14 @@ static int run_file_diff(int prompt, const char *prefix,
 
 int cmd_difftool(int argc, const char **argv, const char *prefix)
 {
-	int use_gui_tool = 0, dir_diff = 0, prompt = -1, symlinks = 0,
-	    tool_help = 0, no_index = 0;
+	int use_gui_tool = 0, no_use_gui_tool = 0, dir_diff = 0, prompt = -1,
+	    symlinks = 0, tool_help = 0, no_index = 0;
 	static char *difftool_cmd = NULL, *extcmd = NULL;
 	struct option builtin_difftool_options[] = {
 		OPT_BOOL('g', "gui", &use_gui_tool,
 			 N_("use `diff.guitool` instead of `diff.tool`")),
+		OPT_BOOL(0, "no-gui", &no_use_gui_tool,
+			 N_("use `diff.tool` instead of `diff.guitool`")),
 		OPT_BOOL('d', "dir-diff", &dir_diff,
 			 N_("perform a full-directory diff")),
 		OPT_SET_INT_F('y', "no-prompt", &prompt,
@@ -738,6 +740,8 @@ int cmd_difftool(int argc, const char **argv, const char *prefix)
 
 	if (use_gui_tool)
 		setenv("GIT_MERGETOOL_GUI", "true", 1);
+	if (no_use_gui_tool)
+		setenv("GIT_MERGETOOL_GUI", "false", 1);
 	else if (difftool_cmd) {
 		if (*difftool_cmd)
 			setenv("GIT_DIFF_TOOL", difftool_cmd, 1);
