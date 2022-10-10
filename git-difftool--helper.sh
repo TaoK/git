@@ -90,7 +90,6 @@ else
 	# Launch the merge tool on each path provided by 'git diff'
 	while test $# -gt 6
 	do
-		echo "Launching tool!"
 		launch_merge_tool "$1" "$2" "$5"
 		status=$?
 		if test $status -ge 126

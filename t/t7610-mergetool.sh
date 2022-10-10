@@ -202,6 +202,8 @@ test_expect_success 'gui mergetool without merge.guitool set falls back to merge
 	git commit -m "branch1 resolved with mergetool"
 '
 
+
+
 test_expect_success 'mergetool crlf' '
 	test_when_finished "git reset --hard" &&
 	# This test_config line must go after the above reset line so that
