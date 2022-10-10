@@ -155,6 +155,7 @@ test_expect_success 'difftool honors --gui' '
 	test_cmp expect actual
 '
 
+# PROBLEM!!!
 test_expect_success 'difftool --gui last setting wins' '
 	difftool_test_setup &&
 	: >expect &&

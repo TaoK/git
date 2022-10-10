@@ -12,6 +12,7 @@ export GIT_TEST_DEFAULT_INITIAL_BRANCH_NAME
 
 . ./test-lib.sh
 
+
 # All the mergetool test work by checking out a temporary branch based
 # off 'branch1' and then merging in main and checking the results of
 # running mergetool
