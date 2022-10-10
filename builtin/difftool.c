@@ -680,17 +680,37 @@ static int run_file_diff(int prompt, const char *prefix,
 	return run_command(child);
 }
 
+enum difftool_gui_mode {
+	GUI_DISABLED = -1,
+	GUI_BY_CONFIG = 0,
+	GUI_ENABLED = 1
+};
+
+static int difftool_opt_gui(const struct option *opt,
+			      const char *optarg, int unset)
+{
+	enum difftool_gui_mode *mode;
+	mode = opt->value;
+
+	BUG_ON_OPT_ARG(optarg);
+
+	if (unset)
+		*mode = GUI_DISABLED;
+	else
+		*mode = GUI_ENABLED;
+	return 0;
+}
+
 int cmd_difftool(int argc, const char **argv, const char *prefix)
 {
-	int use_gui_tool = 0, no_use_gui_tool = 0, dir_diff = 0, prompt = -1,
-	    symlinks = 0, tool_help = 0, no_index = 0;
+	int dir_diff = 0, prompt = -1, symlinks = 0, tool_help = 0,
+	    no_index = 0;
+	enum difftool_gui_mode gui_mode;
 	static char *difftool_cmd = NULL, *extcmd = NULL;
 	struct option builtin_difftool_options[] = {
-		OPT_BOOL('g', "gui", &use_gui_tool,
-			 N_("use `diff.guitool` instead of `diff.tool`")),
-		//OPT_BOOL_F(0, "no-gui", &no_use_gui_tool,
-		//	 N_("use `diff.tool` instead of `diff.guitool`"),
-		//	 PARSE_OPT_NONEG),
+		OPT_CALLBACK_F('g', "gui", &gui_mode, NULL,
+			       N_("use `diff.guitool` instead of `diff.tool`"),
+			       PARSE_OPT_NOARG, difftool_opt_gui),
 		OPT_BOOL('d', "dir-diff", &dir_diff,
 			 N_("perform a full-directory diff")),
 		OPT_SET_INT_F('y', "no-prompt", &prompt,
@@ -735,14 +755,15 @@ int cmd_difftool(int argc, const char **argv, const char *prefix)
 	} else if (dir_diff)
 		die(_("options '%s' and '%s' cannot be used together"), "--dir-diff", "--no-index");
 
-	die_for_incompatible_opt3(use_gui_tool, "--gui",
+	die_for_incompatible_opt3(gui_mode == GUI_ENABLED, "--gui",
 				  !!difftool_cmd, "--tool",
 				  !!extcmd, "--extcmd");
 
-	//if (use_gui_tool)
-	setenv("GIT_MERGETOOL_GUI", xstrfmt("%d", use_gui_tool), 1);
-	//if (no_use_gui_tool)
-	//	setenv("GIT_MERGETOOL_GUI", "false", 1);
+	if (gui_mode == GUI_ENABLED)
+		setenv("GIT_MERGETOOL_GUI", "true", 1);
+	else if (gui_mode == GUI_DISABLED)
+		setenv("GIT_MERGETOOL_GUI", "false", 1);
+
 	if (difftool_cmd) {
 		if (*difftool_cmd)
 			setenv("GIT_DIFF_TOOL", difftool_cmd, 1);

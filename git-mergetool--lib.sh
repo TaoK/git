@@ -120,7 +120,6 @@ get_gui_default () {
 }
 
 gui_mode () {
-	echo "GIT_MERGETOOL_GUI is: $GIT_MERGETOOL_GUI"
 	if [ -z "$GIT_MERGETOOL_GUI" ]
 	then
 		GIT_MERGETOOL_GUI=$(get_gui_default)
