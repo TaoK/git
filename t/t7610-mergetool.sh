@@ -183,11 +183,6 @@ test_expect_success 'mergetool with guiDefault' '
 	test_config merge.guitool myguitool &&
 	test_config mergetool.myguitool.cmd "(printf \"gui \" && cat \"\$REMOTE\") >\"\$MERGED\"" &&
 	test_config mergetool.myguitool.trustExitCode true &&
-
-	test_config merge.tool myregulartool &&
-	test_config mergetool.myregulartool.cmd "(printf \"regular \" && cat \"\$REMOTE\") >\"\$MERGED\"" &&
-	test_config mergetool.myregulartool.trustExitCode true &&
-
 	test_when_finished "git reset --hard" &&
 	git checkout -b test$test_count branch1 &&
 	git submodule update -N &&
@@ -212,7 +207,7 @@ test_expect_success 'mergetool with guiDefault' '
 	echo "gui main updated" >expect &&
 	test_cmp expect file1 &&
 
-	echo "regular main new" >expect &&
+	echo "main new" >expect &&
 	test_cmp expect file2 &&
 
 	echo "gui main new sub" >expect &&
