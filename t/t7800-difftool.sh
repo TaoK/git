@@ -155,7 +155,47 @@ test_expect_success 'difftool honors --gui' '
 	test_cmp expect actual
 '
 
-# PROBLEM!!!
+test_expect_success 'difftool with guiDefault auto selects gui tool when there is DISPLAY' '
+	difftool_test_setup &&
+	test_config merge.tool bogus-tool &&
+	test_config diff.tool bogus-tool &&
+	test_config diff.guitool test-tool &&
+	test_config difftool.guiDefault auto &&
+	DISPLAY=SOMETHING && export DISPLAY &&
+
+	echo branch >expect &&
+	git difftool --no-prompt branch >actual &&
+	test_cmp expect actual
+'
+test_expect_success 'difftool with guiDefault auto selects regular tool when no DISPLAY' '
+	difftool_test_setup &&
+	test_config diff.guitool bogus-tool &&
+	test_config diff.tool test-tool &&
+	test_config difftool.guiDefault auto &&
+	DISPLAY= && export DISPLAY &&
+
+	echo branch >expect &&
+	git difftool --no-prompt branch >actual &&
+	test_cmp expect actual
+'
+
+test_expect_success 'difftool with guiDefault true selects gui tool' '
+	difftool_test_setup &&
+	test_config diff.tool bogus-tool &&
+	test_config diff.guitool test-tool &&
+	test_config difftool.guiDefault true &&
+
+	DISPLAY= && export DISPLAY &&
+	echo branch >expect &&
+	git difftool --no-prompt branch >actual &&
+	test_cmp expect actual &&
+
+	DISPLAY=Something && export DISPLAY &&
+	echo branch >expect &&
+	git difftool --no-prompt branch >actual &&
+	test_cmp expect actual
+'
+
 test_expect_success 'difftool --gui last setting wins' '
 	difftool_test_setup &&
 	: >expect &&
