@@ -11,12 +11,44 @@ test_expect_success 'start p4d' '
 	start_p4d
 '
 
+hexdump_files () {
+	for i in ./*; do echo -n "$i: 	"; xxd -c 26 $i; done;
+}
+
+hexdump_p4 () {
+	for i in ./*; do echo -n "$i: 	"; p4 print -q $i | xxd -c 26; done;
+}
+
 test_expect_success 'init depot' '
 	(
 		cd "$cli" &&
 		echo file1 >file1 &&
 		p4 add file1 &&
-		p4 submit -d "change 1"
+		#echo some tǣxt | sed '\''s/^/\xef\xbb\xbf/'\'' >utf8filebom &&
+		#p4 add utf8filebom &&
+		echo some tëxt | sed '\''s/^/\xef\xbb\xbf/'\'' >utf8filebwn &&
+		p4 add utf8filebwn &&
+		#echo "some tǣxt" >utf8filenob &&
+		#p4 add utf8filenob &&
+		echo "some tëxt" >utf8filewin &&
+		p4 add utf8filewin &&
+		echo "some tëxt" | iconv -f utf8 -t latin1 >latin1file &&
+		p4 add latin1file &&
+		echo "some tëxt" | iconv -f utf8 -t utf-16 >utf16file &&
+		p4 add utf16file &&
+		echo "some tëxt" | iconv -f utf8 -t utf-16le >binfile &&
+		p4 add binfile &&
+		p4 submit -d "change 1" &&
+		p4 files ... &&
+		hexdump_files &&
+		hexdump_p4 &&
+		#export P4COMMANDCHARSET=utf1666 &&
+		export P4CHARSET=winansi &&
+		#p4 sync --force ... &&
+		#hexdump_files &&
+		hexdump_p4 &&
+		xterm &&
+		! [ 1 = 1 ]
 	)
 '
 
@@ -291,6 +323,28 @@ test_expect_success 'submit rename' '
 		! is_cli_file_writeable file6.ta
 	)
 '
+
+test_expect_success 'submit utf8-bom' '
+	test_when_finished cleanup_git &&
+	xterm &&
+	git p4 clone --dest="$git" //depot &&
+	(
+		cd "$git" &&
+		git config git-p4.skipSubmitEdit true &&
+		echo line >>utf8file1 &&
+		git add utf8file1 &&
+		echo line >>utf8file2 &&
+		git add utf8file2 &&
+		git commit -m utf8file1and2 &&
+		git p4 submit
+	) &&
+	(
+		cd "$cli" &&
+		test_path_is_file utf8file1 &&
+		test_line_count = 2 utf8file1
+	)
+'
+
 
 #
 # Converting git commit message to p4 change description, including
