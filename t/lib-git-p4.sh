@@ -83,7 +83,7 @@ start_p4d () {
 	(
 		cd "$db" &&
 		{
-			p4d -xi -p $P4DPORT "$@" &&
+			#p4d -xi -p $P4DPORT "$@" &&
 			p4d -q -p $P4DPORT "$@" &
 			echo $! >"$pidfile"
 		}
@@ -132,7 +132,7 @@ start_p4d () {
 		return 1
 	fi
 
-	export P4CHARSET=utf8
+	#export P4CHARSET=utf8
 
 	# build a p4 user so author@example.com has an entry
 	p4_add_user author

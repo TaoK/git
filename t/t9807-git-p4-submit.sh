@@ -43,13 +43,25 @@ test_expect_success 'init depot' '
 		hexdump_files &&
 		hexdump_p4 &&
 		#export P4COMMANDCHARSET=utf1666 &&
-		export P4CHARSET=winansi &&
+		#export P4CHARSET=winansi &&
 		#p4 sync --force ... &&
 		#hexdump_files &&
-		hexdump_p4 &&
-		xterm &&
-		! [ 1 = 1 ]
-	)
+		hexdump_p4
+	) &&
+	(
+		git p4 clone //depot/... &&
+		cd "depot" &&
+		#cp utf8filewin utf8filebwn &&
+		#git add utf8filebwn &&
+		#git commit -m "removed bom" &&
+		echo more-content >>utf8filebwn &&
+		git add utf8filebwn &&
+		git commit -m "changed utf8filebwn" &&
+		git config git-p4.skipSubmitEdit true &&
+		git p4 submit --verbose
+	) &&
+	xterm &&
+	! [ 1 = 1 ]
 '
 
 test_expect_success 'is_cli_file_writeable function' '
