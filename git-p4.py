@@ -406,6 +406,17 @@ def read_pipe_lines(c, raw=False, *k, **kw):
         die('Command failed: {}'.format(' '.join(c)))
     return lines
 
+def read_pipe_raw_first_line(c, maxbytes=10, *k, **kw):
+    if verbose:
+        sys.stderr.write('Reading first line of pipe up to {} bytes: {}\n'.format(maxbytes, ' '.join(c)))
+
+    p = subprocess.Popen(c, stdout=subprocess.PIPE, *k, **kw)
+    pipe = p.stdout
+    lines = pipe.readlines(maxbytes)
+    if pipe.close() or p.wait():
+        die('Command failed: {}'.format(' '.join(c)))
+    return lines[0]
+
 
 def p4_read_pipe_lines(c, *k, **kw):
     """Specifically invoke p4 on the command supplied."""
@@ -460,6 +471,8 @@ def system(cmd, ignore_error=False, *k, **kw):
 def p4_system(cmd, *k, **kw):
     """Specifically invoke p4 as the system command."""
     real_cmd = p4_build_cmd(cmd)
+    if verbose:
+        sys.stderr.write('Running p4: {}\n'.format(' '.join(real_cmd)))
     retcode = subprocess.call(real_cmd, *k, **kw)
     if retcode:
         raise subprocess.CalledProcessError(retcode, real_cmd)
@@ -2168,10 +2181,26 @@ class P4Submit(Command, P4UserMap):
             all_files.append(path)
 
             if modifier == "M":
-                p4_edit(path)
+                # detect utf-8 to "something else" change and inform p4
+                auto_args = []
+                orig_first_line = read_pipe_raw_first_line(["git", "show", "{}^:{}".format(id, path)])
+                print("ORIG_FIRST_LINE {} {}".format(orig_first_line, orig_first_line.hex()))
+                new_first_line = read_pipe_raw_first_line(["git", "show", "{}:{}".format(id, path)])
+                print("NEW_FIRST_LINE {} {}".format(new_first_line, new_first_line.hex()))
+                utf_8_bom = b'\xef\xbb\xbf'
+                print("BOM_TEST {}".format(utf_8_bom.hex()))
+                if orig_first_line[:3] == utf_8_bom and new_first_line[:3] != utf_8_bom:
+                    print("DETECTED BOM REMOVAL")
+                    #auto_args = ['-t', 'auto']
+                    filesToChangeType.add(path)
+                else:
+                    print("NO BOM REMOVAL DETECTED")
+
+                p4_edit(path, *auto_args)
                 if isModeExecChanged(diff['src_mode'], diff['dst_mode']):
                     filesToChangeExecBit[path] = diff['dst_mode']
                 editedFiles.add(path)
+
             elif modifier == "A":
                 filesToAdd.add(path)
                 filesToChangeExecBit[path] = diff['dst_mode']

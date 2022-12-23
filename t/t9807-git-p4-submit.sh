@@ -51,13 +51,14 @@ test_expect_success 'init depot' '
 	(
 		git p4 clone //depot/... &&
 		cd "depot" &&
-		#cp utf8filewin utf8filebwn &&
-		#git add utf8filebwn &&
-		#git commit -m "removed bom" &&
+		cp utf8filewin utf8filebwn &&
+		git add utf8filebwn &&
+		git commit -m "removed bom" &&
 		echo more-content >>utf8filebwn &&
 		git add utf8filebwn &&
 		git commit -m "changed utf8filebwn" &&
 		git config git-p4.skipSubmitEdit true &&
+		xterm &&
 		git p4 submit --verbose
 	) &&
 	xterm &&
