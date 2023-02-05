@@ -293,6 +293,31 @@ test_expect_success 'submit rename' '
 '
 
 #
+# Specific case of p4 "swallowing" a change - not yet handled
+#
+test_expect_failure 'submit removal of utf8 bom from utf8-with-bom p4 file' '
+	test_when_finished cleanup_git &&
+	(
+		cd "$cli" &&
+		echo "unicode tǣxt" | sed '\''s/^/\xef\xbb\xbf/'\'' >utf8filebom &&
+		p4 add utf8filebom &&
+		p4 submit -d "utf8fileadd" &&
+		ls -la
+	) &&
+	git p4 clone --dest="$git" //depot &&
+	(
+		cd "$git" &&
+		git config git-p4.skipSubmitEdit true &&
+		echo "unicode tǣxt" >utf8filebom &&
+		git add utf8filebom &&
+		git commit -m bom-removal &&
+		git p4 submit &&
+		p4 sync --force //depot/... &&
+		test_cmp utf8filebom "$cli/utf8filebom"
+	)
+'
+
+#
 # Converting git commit message to p4 change description, including
 # parsing out the optional Jobs: line.
 #
