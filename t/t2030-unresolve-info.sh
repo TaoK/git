@@ -178,6 +178,7 @@ test_expect_success 'rerere and rerere forget (subdirectory)' '
 '
 
 test_expect_success 'rerere forget (binary)' '
+	git merge --quit &&
 	git checkout -f side &&
 	test_commit --printf binary binary "a\0c" &&
 	test_must_fail git merge second &&
@@ -185,6 +186,7 @@ test_expect_success 'rerere forget (binary)' '
 '
 
 test_expect_success 'rerere forget (add-add conflict)' '
+	git merge --quit &&
 	git checkout -f main &&
 	echo main >add-differently &&
 	git add add-differently &&
@@ -195,6 +197,7 @@ test_expect_success 'rerere forget (add-add conflict)' '
 '
 
 test_expect_success 'resolve-undo keeps blobs from gc' '
+	git merge --quit &&
 	git checkout -f main &&
 
 	# First make sure we do not have any cruft left in the object store
