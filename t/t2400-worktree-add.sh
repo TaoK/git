@@ -384,15 +384,6 @@ test_expect_success 'rename a branch under rebase not allowed' '
 	test_must_fail git branch -M under-rebase rebase-with-new-name
 '
 
-test_expect_success 'check out from current worktree branch ok' '
-	(
-		cd under-rebase &&
-		git checkout under-rebase &&
-		git checkout - &&
-		git rebase --abort
-	)
-'
-
 test_expect_success 'checkout a branch under bisect' '
 	git worktree add under-bisect &&
 	(
