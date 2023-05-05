@@ -75,7 +75,6 @@ struct checkout_opts {
 	int accept_pathspec;
 	int switch_branch_doing_nothing_is_ok;
 	int only_merge_on_switching_branches;
-	int can_switch_when_in_progress;
 	int orphan_from_empty_tree;
 	int empty_pathspec_ok;
 	int checkout_index;
@@ -1472,7 +1471,7 @@ static void die_expecting_a_branch(const struct branch_info *branch_info)
 	exit(code);
 }
 
-static void die_if_some_operation_in_progress(void)
+static void die_if_some_operation_in_progress(int quiet)
 {
 	struct wt_status_state state;
 
@@ -1499,7 +1498,7 @@ static void die_if_some_operation_in_progress(void)
 		die(_("cannot switch branch while reverting\n"
 		      "Consider \"git revert --quit\" "
 		      "or \"git worktree add\"."));
-	if (state.bisect_in_progress)
+	if (state.bisect_in_progress && !quiet)
 		warning(_("you are switching branch while bisecting"));
 
 	wt_status_state_free_buffers(&state);
@@ -1562,8 +1561,8 @@ static int checkout_branch(struct checkout_opts *opts,
 	    !new_branch_info->path)
 		die_expecting_a_branch(new_branch_info);
 
-	if (!opts->can_switch_when_in_progress)
-		die_if_some_operation_in_progress();
+	if (!opts->force)
+		die_if_some_operation_in_progress(opts->quiet);
 
 	if (new_branch_info->path && !opts->force_detach && !opts->new_branch &&
 	    !opts->ignore_other_worktrees) {
@@ -1879,7 +1878,6 @@ int cmd_checkout(int argc, const char **argv, const char *prefix)
 	opts.accept_ref = 1;
 	opts.accept_pathspec = 1;
 	opts.implicit_detach = 1;
-	opts.can_switch_when_in_progress = 1;
 	opts.orphan_from_empty_tree = 0;
 	opts.empty_pathspec_ok = 1;
 	opts.overlay_mode = -1;
@@ -1934,7 +1932,6 @@ int cmd_switch(int argc, const char **argv, const char *prefix)
 	opts.switch_branch_doing_nothing_is_ok = 0;
 	opts.only_merge_on_switching_branches = 1;
 	opts.implicit_detach = 0;
-	opts.can_switch_when_in_progress = 0;
 	opts.orphan_from_empty_tree = 1;
 	opts.overlay_mode = -1;
 
