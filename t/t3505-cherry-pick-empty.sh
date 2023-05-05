@@ -28,6 +28,7 @@ test_expect_success setup '
 '
 
 test_expect_success 'cherry-pick an empty commit' '
+	test_when_finished "git cherry-pick --abort" &&
 	git checkout main &&
 	test_expect_code 1 git cherry-pick empty-change-branch
 '
@@ -52,6 +53,7 @@ test_expect_success 'cherry-pick a commit with an empty message with --allow-emp
 '
 
 test_expect_success 'cherry pick an empty non-ff commit without --allow-empty' '
+	test_when_finished "git cherry-pick --abort" &&
 	git checkout main &&
 	echo fourth >>file2 &&
 	git add file2 &&
