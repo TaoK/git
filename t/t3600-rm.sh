@@ -515,6 +515,7 @@ UU submod
 EOF
 
 test_expect_success 'rm removes work tree of unmodified conflicted submodule' '
+	test_when_finished "git merge --abort" &&
 	git checkout conflict1 &&
 	git reset --hard &&
 	git submodule update &&
@@ -526,6 +527,7 @@ test_expect_success 'rm removes work tree of unmodified conflicted submodule' '
 '
 
 test_expect_success 'rm of a conflicted populated submodule with different HEAD fails unless forced' '
+	test_when_finished "git merge --abort" &&
 	git checkout conflict1 &&
 	git reset --hard &&
 	git submodule update &&
@@ -545,6 +547,7 @@ test_expect_success 'rm of a conflicted populated submodule with different HEAD 
 '
 
 test_expect_success 'rm of a conflicted populated submodule with modifications fails unless forced' '
+	test_when_finished "git merge --abort" &&
 	git checkout conflict1 &&
 	git reset --hard &&
 	git submodule update &&
@@ -564,6 +567,7 @@ test_expect_success 'rm of a conflicted populated submodule with modifications f
 '
 
 test_expect_success 'rm of a conflicted populated submodule with untracked files fails unless forced' '
+	test_when_finished "git merge --abort" &&
 	git checkout conflict1 &&
 	git reset --hard &&
 	git submodule update &&
@@ -606,6 +610,7 @@ test_expect_success 'rm of a conflicted populated submodule with a .git director
 '
 
 test_expect_success 'rm of a conflicted unpopulated submodule succeeds' '
+	test_when_finished "git merge --abort" &&
 	git checkout conflict1 &&
 	git reset --hard &&
 	test_must_fail git merge conflict2 &&

@@ -150,21 +150,21 @@ test_expect_success '--no-verify with failing hook' '
 '
 
 test_expect_success 'with failing hook (merge)' '
+	test_when_finished "git checkout main" &&
+	test_when_finished "git merge --abort" &&
 	setup_failing_hook "pre-merge-commit" &&
 	echo "pre-merge-commit-failing-hook" >expected_hooks &&
 	git checkout side &&
 	test_must_fail git merge -m "merge main" main &&
-	git checkout main &&
 	test_cmp expected_hooks actual_hooks
 '
 
 test_expect_success '--no-verify with failing hook (merge)' '
+	test_when_finished "git checkout main" &&
 	setup_failing_hook "pre-merge-commit" &&
-
 	git branch -f side side-orig &&
 	git checkout side &&
 	git merge --no-verify -m "merge main" main &&
-	git checkout main &&
 	test_path_is_missing actual_hooks
 '
 
