@@ -16,13 +16,13 @@ TEST_CREATE_REPO_NO_TEMPLATE=1
 . ./test-lib.sh
 
 pristine_detach () {
+	git cherry-pick --abort || echo "ignoring inapplicable abort" &&
 	git checkout -f "$1^0" &&
 	git read-tree -u --reset HEAD &&
 	git clean -d -f -f -q -x
 }
 
 test_expect_success setup '
-
 	echo unrelated >unrelated &&
 	git add unrelated &&
 	test_commit initial foo a &&

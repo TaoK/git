@@ -288,6 +288,7 @@ test_expect_success 'with failing hook (--no-verify)' '
 test_expect_success 'with failing hook (merge)' '
 
 	test_when_finished "git checkout -f main" &&
+	test_when_finished "git merge --abort" &&
 	git checkout -B other HEAD@{1} &&
 	echo "more" >> file &&
 	git add file &&
@@ -303,6 +304,7 @@ test_expect_success 'with failing hook (merge)' '
 
 test_expect_success 'with failing hook (cherry-pick)' '
 	test_when_finished "git checkout -f main" &&
+	test_when_finished "git cherry-pick --abort" &&
 	git checkout -B other b &&
 	test_must_fail git cherry-pick rebase-1 2>actual &&
 	test $(grep -c prepare-commit-msg actual) = 1

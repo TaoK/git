@@ -55,7 +55,11 @@ test_rename() {
 	case "$expect" in
 		ok) git merge main ;;
 		 *) test_must_fail git merge main ;;
-	esac
+	esac &&
+	if test -e .git/MERGE_HEAD
+	then
+		git merge --abort
+	fi
 	'
 }
 

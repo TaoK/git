@@ -237,7 +237,7 @@ test_expect_success 'fetch upstream branch even if refspec excludes it' '
 
 test_expect_success 'fail if the index has unresolved entries' '
 	git checkout -b third second^ &&
-	test_when_finished "git checkout -f copy && git branch -D third" &&
+	test_when_finished "git merge --abort && git checkout -f copy && git branch -D third" &&
 	echo file >expect &&
 	test_cmp expect file &&
 	test_commit modified2 file &&

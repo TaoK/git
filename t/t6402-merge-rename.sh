@@ -950,6 +950,7 @@ test_expect_success 'setup spurious "refusing to lose untracked" message' '
 '
 
 test_expect_success 'no spurious "refusing to lose untracked" message' '
+	test_when_finished "git merge --abort" &&
 	git checkout main^0 &&
 	test_must_fail git merge rename^0 2>errors.txt &&
 	! grep "refusing to lose untracked file" errors.txt

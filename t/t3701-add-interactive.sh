@@ -1073,6 +1073,7 @@ test_expect_success 'show help from add--helper' '
 
 test_expect_success 'reset -p with unmerged files' '
 	test_when_finished "git checkout --force main" &&
+	test_when_finished "git merge --abort" &&
 	test_commit one conflict &&
 	git checkout -B side HEAD^ &&
 	test_commit two conflict &&

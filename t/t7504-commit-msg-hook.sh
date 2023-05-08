@@ -274,6 +274,7 @@ test_expect_success 'hook called in git-merge picks up commit message' '
 test_expect_failure 'merge --continue remembers --no-verify' '
 	test_when_finished "git branch -D newbranch" &&
 	test_when_finished "git checkout -f main" &&
+	test_when_finished "git merge --abort" &&
 	git checkout main &&
 	echo a >file2 &&
 	git add file2 &&

@@ -138,6 +138,7 @@ test_expect_success 'mark rename/delete as unmerged' '
 	fi &&
 	git rev-parse --verify :2:a2 &&
 	test_must_fail git rev-parse --verify :3:a2 &&
+	git merge --abort &&
 	git checkout -f delete &&
 	test_must_fail git merge rename &&
 	if test "$GIT_TEST_MERGE_ALGORITHM" = ort
