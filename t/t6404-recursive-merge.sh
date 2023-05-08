@@ -101,6 +101,7 @@ test_expect_success 'virtual trees were processed' '
 '
 
 test_expect_success 'refuse to merge binary files' '
+	test_when_finished "git merge --abort" &&
 	git reset --hard &&
 	printf "\0" >binary-file &&
 	git add binary-file &&
@@ -119,7 +120,7 @@ test_expect_success 'refuse to merge binary files' '
 '
 
 test_expect_success 'mark rename/delete as unmerged' '
-
+	test_when_finished "git merge --abort" &&
 	git reset --hard &&
 	git checkout -b delete &&
 	git rm a1 &&
