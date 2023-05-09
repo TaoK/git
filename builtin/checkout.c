@@ -1560,7 +1560,8 @@ static int checkout_branch(struct checkout_opts *opts,
 	    !new_branch_info->path)
 		die_expecting_a_branch(new_branch_info);
 
-	die_if_some_operation_in_progress(opts->quiet);
+	if (!opts->force)
+		die_if_some_operation_in_progress(opts->quiet);
 
 	if (new_branch_info->path && !opts->force_detach && !opts->new_branch &&
 	    !opts->ignore_other_worktrees) {
