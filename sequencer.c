@@ -2150,8 +2150,10 @@ static int do_pick_commit(struct repository *r,
 			  struct replay_opts *opts,
 			  int final_fixup, int *check_todo)
 {
+	warning(_("entering pick commit"));
 	unsigned int flags = should_edit(opts) ? EDIT_MSG : 0;
 	const char *msg_file = should_edit(opts) ? NULL : git_path_merge_msg(r);
+	warning(_("got flags"));
 	struct object_id head;
 	struct commit *base, *next, *parent;
 	const char *base_label, *next_label;
@@ -2172,6 +2174,7 @@ static int do_pick_commit(struct repository *r,
 		if (write_index_as_tree(&head, r->index, r->index_file, 0, NULL))
 			return error(_("your index file is unmerged."));
 	} else {
+		warning(_("checking unborn"));
 		unborn = repo_get_oid(r, "HEAD", &head);
 		/* Do we want to generate a root commit? */
 		if (is_pick_or_similar(command) && opts->have_squash_onto &&
@@ -2182,6 +2185,7 @@ static int do_pick_commit(struct repository *r,
 			unborn = 1;
 		} else if (unborn)
 			oidcpy(&head, the_hash_algo->empty_tree);
+		warning(_("checking index diff"));
 		if (index_differs_from(r, unborn ? empty_tree_oid_hex() : "HEAD",
 				       NULL, 0))
 			return error_dirty_index(r, opts);
@@ -4671,6 +4675,8 @@ static int pick_commits(struct repository *r,
 {
 	int res = 0, reschedule = 0;
 
+	warning(_("In pick_commits"));
+
 	opts->reflog_message = sequencer_reflog_action(opts);
 	if (opts->allow_ff)
 		assert(!(opts->signoff || opts->no_commit ||
@@ -4680,14 +4686,23 @@ static int pick_commits(struct repository *r,
 	if (read_and_refresh_cache(r, opts))
 		return -1;
 
+	warning(_("Getting to while"));
+
 	while (todo_list->current < todo_list->nr) {
 		struct todo_item *item = todo_list->items + todo_list->current;
 		const char *arg = todo_item_get_arg(todo_list, item);
 		int check_todo = 0;
 
+		warning(_("Saving Todo"));
+
 		if (save_todo(todo_list, opts))
 			return -1;
+
+		warning(_("checking rebase interactive"));
+
 		if (is_rebase_i(opts)) {
+			warning(_("In rebase interactive"));
+
 			if (item->command != TODO_COMMENT) {
 				FILE *f = fopen(rebase_path_msgnum(), "w");
 
@@ -4717,11 +4732,17 @@ static int pick_commits(struct repository *r,
 				return stopped_at_head(r);
 			}
 		}
+
+		warning(_("checking squash"));
+
 		if (item->command <= TODO_SQUASH) {
+			warning(_("doing squash or less"));
+
 			if (is_rebase_i(opts))
 				opts->reflog_message = reflog_message(opts,
 				      command_to_string(item->command), NULL);
 
+			warning(_("doing pick commit"));
 			res = do_pick_commit(r, item, opts,
 					     is_final_fixup(todo_list),
 					     &check_todo);
@@ -4737,6 +4758,7 @@ static int pick_commits(struct repository *r,
 					return -1;
 			}
 			if (item->command == TODO_EDIT) {
+				warning(_("doing edit"));
 				struct commit *commit = item->commit;
 				if (!res) {
 					if (!opts->verbose)
@@ -4753,6 +4775,7 @@ static int pick_commits(struct repository *r,
 				record_in_rewritten(&item->commit->object.oid,
 					peek_command(todo_list, 1));
 			if (res && is_fixup(item->command)) {
+				warning(_("doing fixup"));
 				if (res == 1)
 					intend_to_amend();
 				return error_failed_squash(r, item->commit, opts,
@@ -4779,6 +4802,9 @@ static int pick_commits(struct repository *r,
 						res, to_amend);
 			}
 		} else if (item->command == TODO_EXEC) {
+
+			warning(_("doing exec"));
+
 			char *end_of_arg = (char *)(arg + item->arg_len);
 			int saved = *end_of_arg;
 
@@ -4794,12 +4820,18 @@ static int pick_commits(struct repository *r,
 			}
 			check_todo = 1;
 		} else if (item->command == TODO_LABEL) {
+			warning(_("doing label"));
+
 			if ((res = do_label(r, arg, item->arg_len)))
 				reschedule = 1;
 		} else if (item->command == TODO_RESET) {
+			warning(_("doing reset"));
+
 			if ((res = do_reset(r, arg, item->arg_len, opts)))
 				reschedule = 1;
 		} else if (item->command == TODO_MERGE) {
+			warning(_("doing merge"));
+
 			if ((res = do_merge(r, item->commit, arg, item->arg_len,
 					    item->flags, &check_todo, opts)) < 0)
 				reschedule = 1;
@@ -4812,6 +4844,8 @@ static int pick_commits(struct repository *r,
 							arg, item->arg_len,
 							opts, res, 0);
 		} else if (item->command == TODO_UPDATE_REF) {
+			warning(_("doing update_ref"));
+
 			struct strbuf ref = STRBUF_INIT;
 			strbuf_add(&ref, arg, item->arg_len);
 			if ((res = do_update_ref(r, ref.buf)))
