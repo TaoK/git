@@ -373,6 +373,8 @@ void replay_opts_release(struct replay_opts *opts)
 
 int sequencer_remove_state(struct replay_opts *opts)
 {
+	warning(_("running 'sequencer_remove_state'"));
+
 	struct strbuf buf = STRBUF_INIT;
 	int ret = 0;
 
@@ -393,8 +395,14 @@ int sequencer_remove_state(struct replay_opts *opts)
 		}
 	}
 
+	warning(_("removing stuff"));
+
+
 	strbuf_reset(&buf);
 	strbuf_addstr(&buf, get_dir(opts));
+
+	warning(_("removing '%s'"), buf.buf);
+
 	if (remove_dir_recursively(&buf, 0))
 		ret = error(_("could not remove '%s'"), buf.buf);
 	strbuf_release(&buf);
@@ -2771,6 +2779,8 @@ static int have_finished_the_last_pick(void)
 
 void sequencer_post_commit_cleanup(struct repository *r, int verbose)
 {
+	warning(_("running 'sequencer_post_commit_cleanup'"));
+
 	struct replay_opts opts = REPLAY_OPTS_INIT;
 	int need_cleanup = 0;
 
@@ -2780,6 +2790,7 @@ void sequencer_post_commit_cleanup(struct repository *r, int verbose)
 		    verbose)
 			warning(_("cancelling a cherry picking in progress"));
 		opts.action = REPLAY_PICK;
+		warning(_("setting need cleanup"));
 		need_cleanup = 1;
 	}
 
@@ -2794,11 +2805,19 @@ void sequencer_post_commit_cleanup(struct repository *r, int verbose)
 
 	unlink(git_path_auto_merge(r));
 
-	if (!need_cleanup)
-		return;
+	warning(_("considering maybe getting to 'sequencer_remove_state'"));
 
-	if (!have_finished_the_last_pick())
+	if (!need_cleanup) {
+		warning(_("about to return for no ned cleanup"));
 		return;
+	}
+
+	warning(_("considering getting to 'sequencer_remove_state' harder"));
+
+	if (!have_finished_the_last_pick()) {
+		warning(_("didnt finish last pick..."));
+		return;
+	}
 
 	sequencer_remove_state(&opts);
 }
@@ -3250,6 +3269,7 @@ static int reset_merge(const struct object_id *oid)
 	if (!is_null_oid(oid))
 		strvec_push(&cmd.args, oid_to_hex(oid));
 
+	warning(_("Actually resetting merge"));
 	return run_command(&cmd);
 }
 
@@ -3282,6 +3302,7 @@ int sequencer_rollback(struct repository *r, struct replay_opts *opts)
 	struct object_id oid;
 	struct strbuf buf = STRBUF_INIT;
 	const char *p;
+	warning(_("Doing 'sequencer_rollback'"));
 
 	f = fopen(git_path_head_file(), "r");
 	if (!f && errno == ENOENT) {
@@ -3290,6 +3311,7 @@ int sequencer_rollback(struct repository *r, struct replay_opts *opts)
 		 * If CHERRY_PICK_HEAD or REVERT_HEAD indicates
 		 * a single-cherry-pick in progress, abort that.
 		 */
+		warning(_("Doing single pick rollback"));
 		return rollback_single_pick(r);
 	}
 	if (!f)
@@ -3301,6 +3323,7 @@ int sequencer_rollback(struct repository *r, struct replay_opts *opts)
 		goto fail;
 	}
 	fclose(f);
+	warning(_("Got sequencer head"));
 	if (parse_oid_hex(buf.buf, &oid, &p) || *p != '\0') {
 		error(_("stored pre-cherry-pick HEAD file '%s' is corrupt"),
 			git_path_head_file());
@@ -3311,14 +3334,17 @@ int sequencer_rollback(struct repository *r, struct replay_opts *opts)
 		goto fail;
 	}
 
+	warning(_("Checking for safe rollback"));
 	if (!rollback_is_safe()) {
 		/* Do not error, just do not rollback */
 		warning(_("You seem to have moved HEAD. "
 			  "Not rewinding, check your HEAD!"));
 	} else
+	warning(_("Resetting merge"));
 	if (reset_merge(&oid))
 		goto fail;
 	strbuf_release(&buf);
+	warning(_("Running 'sequencer_remove_state' from 'sequencer_rollback'"));
 	return sequencer_remove_state(opts);
 fail:
 	strbuf_release(&buf);

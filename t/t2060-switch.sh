@@ -118,6 +118,36 @@ test_expect_success 'not switching when something is in progress' '
 	test_must_fail git switch -d @^
 '
 
+test_expect_success 'overriding in-progress operation with --force' '
+	test_when_finished rm -f .git/MERGE_HEAD &&
+	# fake a merge-in-progress
+	cp .git/HEAD .git/MERGE_HEAD &&
+	git switch -f -d @^ &&
+	test_path_is_missing .git/MERGE_HEAD
+'
+
+test_expect_success '--force stomps on cherry-pick sequence' '
+	git switch -c cherrytesting main &&
+	test_commit initial foo a &&
+	test_commit base foo b &&
+	test_commit unrelatedpick unrelated reallyunrelated &&
+	test_commit picked foo c &&
+	git switch --detach cherrytesting &&
+	test_commit conflicting unrelated &&
+	test_expect_code 1 git cherry-pick base..picked &&
+	git checkout -f cherrytesting &&
+	test_path_is_missing .git/sequencer &&
+	test_path_is_missing .git/CHERRY_PICK_HEAD &&
+	git status --porcelain -uno >out &&
+	test_must_be_empty out
+'
+
+# consistent cancellation warnings? (merge, cherry-pick, revert, rebase, am, but NOT bisect?)
+# Pending: Handles rerere removal
+# pending: handles AM
+# Pending: Hanles rebase
+# Pending: Handles bisect
+
 test_expect_success 'tracking info copied with autoSetupMerge=inherit' '
 	# default config does not copy tracking info
 	git switch -c foo-no-inherit foo &&

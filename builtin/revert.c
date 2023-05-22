@@ -213,6 +213,7 @@ static int run_sequencer(int argc, const char **argv, const char *prefix,
 	free(options);
 
 	if (cmd == 'q') {
+		warning(_("Doing q"));
 		int ret = sequencer_remove_state(opts);
 		if (!ret)
 			remove_branch_state(the_repository, 0);
@@ -220,8 +221,10 @@ static int run_sequencer(int argc, const char **argv, const char *prefix,
 	}
 	if (cmd == 'c')
 		return sequencer_continue(the_repository, opts);
-	if (cmd == 'a')
+	if (cmd == 'a') {
+		warning(_("Doing a"));
 		return sequencer_rollback(the_repository, opts);
+	}
 	if (cmd == 's')
 		return sequencer_skip(the_repository, opts);
 	return sequencer_pick_revisions(the_repository, opts);

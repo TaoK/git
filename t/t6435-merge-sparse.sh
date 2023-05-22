@@ -52,6 +52,9 @@ test_expect_success 'Merge abort works after the conflict' '
 	git merge --abort
 '
 
+
+
+
 test_expect_success 'is aborted properly' '
 	git status --porcelain -- modify_delete >out &&
 	test_must_be_empty out &&

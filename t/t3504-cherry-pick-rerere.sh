@@ -95,6 +95,9 @@ test_expect_success 'cherry-pick --rerere-autoupdate more than once' '
 	git cherry-pick --abort
 '
 
+
+
+
 test_expect_success 'cherry-pick conflict without rerere' '
 	test_config rerere.enabled false &&
 	test_must_fail git cherry-pick foo-main &&

@@ -37,6 +37,8 @@ test_expect_success setup '
 	git tag rename2
 '
 
+
+
 test_expect_success 'cherry-pick --nonsense' '
 
 	pos=$(git rev-parse HEAD) &&

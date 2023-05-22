@@ -30,6 +30,9 @@ testrebase() {
 	type=$1
 	state_dir=$2
 
+
+
+
 	test_expect_success "rebase$type --abort" '
 		# Clean up the state from the previous one
 		git reset --hard pre-rebase &&

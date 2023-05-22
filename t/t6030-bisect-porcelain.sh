@@ -881,6 +881,10 @@ test_expect_success 'bisect fails if tree is broken on start commit' '
 	test_cmp expected.missing-tree.default error.txt
 '
 
+
+
+
+
 test_expect_success 'bisect fails if tree is broken on trial commit' '
 	git bisect reset &&
 	test_must_fail git bisect start BROKEN_HASH9 BROKEN_HASH4 2>error.txt &&

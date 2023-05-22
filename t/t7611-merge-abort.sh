@@ -46,6 +46,9 @@ test_expect_success 'setup' '
 	git checkout main
 '
 
+
+
+
 pre_merge_head="$(git rev-parse HEAD)"
 
 test_expect_success 'fails without MERGE_HEAD (unstarted merge)' '

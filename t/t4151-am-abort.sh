@@ -31,6 +31,9 @@ test_expect_success setup '
 	echo local change >file-2-expect
 '
 
+
+
+
 for with3 in '' ' -3'
 do
 	test_expect_success "am$with3 stops at a patch that does not apply" '
